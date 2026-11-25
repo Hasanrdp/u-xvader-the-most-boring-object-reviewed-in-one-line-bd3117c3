@@ -14,6 +14,23 @@ EXPECTED_SHA256 = "0634a42d23dc732a431217898dd8229b608021ae60c0c3f07f9ed3262e144
 EXPECTED_BYTES = 122
 
 
+def verify(path: str, data: bytes) -> bool:
+    """Read back the written file and confirm it is byte-for-byte identical."""
+    with open(path, "rb") as fh:
+        written = fh.read()
+    if len(written) != EXPECTED_BYTES:
+        print(f"verify fail: file is {len(written)} bytes, expected {EXPECTED_BYTES}", file=sys.stderr)
+        return False
+    if written != data:
+        print("verify fail: file bytes differ from entry", file=sys.stderr)
+        return False
+    digest = hashlib.sha256(written).hexdigest()
+    if digest != EXPECTED_SHA256:
+        print(f"verify fail: file sha256 {digest}", file=sys.stderr)
+        return False
+    return True
+
+
 def main() -> int:
     data = REVIEW.encode("utf-8")
     if not 1 <= len(data) <= 200:
@@ -28,8 +45,11 @@ def main() -> int:
         return 1
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "entry.txt"), "wb") as fh:
+    out_path = os.path.join(out_dir, "entry.txt")
+    with open(out_path, "wb") as fh:
         fh.write(data)
+    if not verify(out_path, data):
+        raise SystemExit("verification failed: written file does not match")
     print(f"wrote entry.txt: {len(data)} bytes, sha256 {digest}")
     return 0
 
